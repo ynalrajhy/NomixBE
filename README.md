@@ -88,8 +88,9 @@ NomixBE/
 
 ### Backend Developers
 
-- **[Your Name]**
-- **[Your Name]**
+- **Yousef Alrajhy**
+- **Mohamad AlQalaf**
+- **Fahad Saeed**
 
 
 ## Team 1
