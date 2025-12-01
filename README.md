@@ -2,6 +2,8 @@
 
 The backend server for the **Nomix** application, a recipe management platform. Built with Node.js, Express, and MongoDB.
 
+[Nomix Frontend](https://github.com/mja09h/Nomix-FE)
+
 ## 🚀 Features
 
 - **Recipe Management**: Create, read, update, and delete recipes.
@@ -84,8 +86,15 @@ NomixBE/
 
 ## 👥 Credits
 
-
 ### Backend Developers
 
 - **[Your Name]**
 - **[Your Name]**
+
+
+## Team 1
+
+- **Mohammad Jassim Aljumaah**
+- **Yousef Alrajhy**
+- **Mohamad AlQalaf**
+- **Fahad Saeed**
