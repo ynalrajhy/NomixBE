@@ -75,14 +75,22 @@ NomixBE/
 
 ## 📡 API Endpoints
 
-### Recipes
+### Recipes (`/api/recipes`)
 
-| Method   | Endpoint           | Description           |
-| :------- | :----------------- | :-------------------- |
-| `GET`    | `/api/recipes`     | Fetch all recipes     |
-| `POST`   | `/api/recipes`     | Create a new recipe   |
-| `PUT`    | `/api/recipes/:id` | Update a recipe by ID |
-| `DELETE` | `/api/recipes/:id` | Delete a recipe by ID |
+| Method   | Endpoint | Description         | Auth Required | Required Data                                                                   | Returned Data                                               |
+| :------- | :------- | :------------------ | :------------ | :------------------------------------------------------------------------------ | :---------------------------------------------------------- |
+| `GET`    | `/`      | Fetch all recipes   | No            | None                                                                            | `{ success: true, data: [Recipe] }`                         |
+| `POST`   | `/`      | Create a new recipe | No            | `name`, `category`, `ingredients`, `instructions`, `image` (file)               | `{ success: true, data: Recipe }`                           |
+| `PUT`    | `/:id`   | Update a recipe     | No            | `id` (param), `name`, `category`, `ingredients`, `instructions`, `image` (file) | `{ success: true, data: Recipe }`                           |
+| `DELETE` | `/:id`   | Delete a recipe     | No            | `id` (param)                                                                    | `{ success: true, message: "Recipe deleted successfully" }` |
+
+### Users (`/api/users`)
+
+| Method | Endpoint | Description         | Auth Required | Required Data                                      | Returned Data                                                                     |
+| :----- | :------- | :------------------ | :------------ | :------------------------------------------------- | :-------------------------------------------------------------------------------- |
+| `POST` | `/`      | Register a new user | No            | `username`, `email`, `password`, `confirmPassword` | `{ success: true, data: User, token: string }`                                    |
+| `POST` | `/login` | Login a user        | No            | `username`, `password`                             | `{ success: true, message: "Logged in successfully", data: User, token: string }` |
+| `GET`  | `/`      | Fetch all users     | Yes           | None                                               | `{ success: true, data: [User] }`                                                 |
 
 ## 👥 Credits
 
@@ -91,7 +99,6 @@ NomixBE/
 - **Yousef Alrajhy**
 - **Mohamad AlQalaf**
 - **Fahad Saeed**
-
 
 ## Team 1
 
