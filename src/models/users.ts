@@ -4,13 +4,15 @@ const UserSchema = new mongoose.Schema({
   username: String,
   email: String,
   password: String,
+
   urls: [
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Url",
     },
   ],
-});
+
+}); 
 
 const User = mongoose.model("User", UserSchema);
 
