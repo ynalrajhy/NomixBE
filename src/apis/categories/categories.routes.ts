@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { createCategory, addRecipeToCategory, getAllCategories } from "./categories.controller";
+import { createCategory, getAllCategories } from "./categories.controller";
+import { auth } from "../../middlewares/auth";
 
 const router = Router();
 
-router.post("/", createCategory);
-router.post("/:categoryId/recipes/:recipeId", addRecipeToCategory);
+router.post("/", auth, createCategory);
 router.get("/", getAllCategories);
 
 export default router;

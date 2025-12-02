@@ -8,7 +8,6 @@ dotenv.config();
 
 const auth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-
     const mreq = req as userType;
     const header = mreq.header("authorization");
     const [scheme, token] = header?.split(" ") || [];
@@ -27,9 +26,7 @@ const auth = async (req: Request, res: Response, next: NextFunction) => {
       username: payload.username as string,
       email: payload.email as string,
     };
-
     next();
-
   } catch (error) {
     return res.status(401).json({ message: "Unauthorized" });
   }

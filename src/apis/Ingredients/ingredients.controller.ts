@@ -1,36 +1,33 @@
 import { Request, Response, NextFunction } from "express";
-import categories from "../../models/categories";
-import mongoose from "mongoose";
+import ingredients from "../../models/ingredients";
 
-export const createCategory = async (
+export const createIngredient = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
     const { name } = req.body;
-    const category = await categories.create({ name });
-
+    const ingredient = await ingredients.create({ name });
     res.status(201).json({
       success: true,
-      data: category,
+      data: ingredient,
     });
   } catch (error) {
     next(error);
   }
 };
 
-export const getAllCategories = async (
+export const getAllIngredients = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const categoriesList = await categories.find();
-
+    const ingredientsList = await ingredients.find();
     res.status(200).json({
       success: true,
-      data: categoriesList,
+      data: ingredientsList,
     });
   } catch (error) {
     next(error);

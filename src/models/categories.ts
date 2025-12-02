@@ -1,9 +1,16 @@
-import mongoose from "mongoose";
+import mongoose, { Model, Schema } from "mongoose";
 
-const CategorySchema = new mongoose.Schema({
-    name: String,
+export interface ICategory {
+  name: string;
+  recipes: mongoose.Schema.Types.ObjectId[];
+}
+
+const categorySchema = new mongoose.Schema<ICategory>({
+  name: { type: String, required: true },
+  recipes: [{ type: mongoose.Schema.Types.ObjectId, ref: "Recipe" }],
 });
-
-const Category = mongoose.model("Category", CategorySchema);
-
-export default Category;
+const categories: Model<ICategory> = mongoose.model<ICategory>(
+  "categories",
+  categorySchema
+);
+export default categories;
