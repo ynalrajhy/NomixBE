@@ -4,7 +4,7 @@ import {
   getAllRecipes,
   updateRecipe,
   deleteRecipe,
-} from "./recipes.controllers";
+} from "./recipes.controller";
 import { auth } from "../../middlewares/auth";
 
 const router = Router();

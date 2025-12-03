@@ -7,6 +7,9 @@ export interface IRecipe {
   instructions: string[];
   image: string;
   userId: mongoose.Schema.Types.ObjectId;
+  
+  createdAt: Date;
+  updatedAt: Date;
 }
 const RecipeSchema = new Schema({
   name: String,
@@ -19,6 +22,9 @@ const RecipeSchema = new Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
   },
+
+  createdAt: { type: Date, default: Date.now, required: true },
+  updatedAt: { type: Date, default: Date.now, required: true },
 });
 
 const recipes = mongoose.model("Recipe", RecipeSchema);
