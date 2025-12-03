@@ -11,6 +11,7 @@ export interface ICategory {
 const categorySchema = new mongoose.Schema<ICategory>({
   name: { type: String, required: true },
   recipes: [{ type: mongoose.Schema.Types.ObjectId, ref: "Recipe" }],
+  
 
   createdAt: { type: Date, default: Date.now, required: true },
   updatedAt: { type: Date, default: Date.now, required: true },
