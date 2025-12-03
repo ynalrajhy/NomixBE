@@ -98,6 +98,7 @@ NomixBE/
 
 - **Yousef Alrajhy**
 - **Mohamad AlQalaf**
+- **Mohammad Jassim Aljumaah**
 - **Fahad Saeed**
 
 ## Team 1
