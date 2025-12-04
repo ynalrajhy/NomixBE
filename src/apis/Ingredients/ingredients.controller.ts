@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import ingredients from "../../models/ingredients";
 import recipes from "../../models/recipes";
+import Report from "../../models/reports";
+import mongoose from "mongoose";
 
 export const createIngredient = async (
   req: Request,
@@ -125,6 +127,91 @@ export const deleteIngredient = async (
     res.status(200).json({
       success: true,
       message: "Ingredient deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Admin functions
+export const getAllIngredientsAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const ingredientsList = await ingredients
+      .find()
+      .populate("Recipe", "name")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: ingredientsList,
+      total: ingredientsList.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminDeleteIngredient = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const ingredient = await ingredients.findByIdAndDelete(id);
+
+    if (!ingredient) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Ingredient not found" });
+    }
+
+    // Remove this ingredient from all recipes that use it
+    await recipes.updateMany(
+      { ingredients: id },
+      { $pull: { ingredients: id } }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Ingredient deleted successfully by admin",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getReportsForIngredient = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    const ingredient = await ingredients.findById(id);
+
+    if (!ingredient) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Ingredient not found" });
+    }
+
+    const reportsForIngredient = await Report.find({
+      targetType: "ingredient",
+      targetId: new mongoose.Types.ObjectId(id),
+    })
+      .populate("reporter", "username email")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: reportsForIngredient,
+      total: reportsForIngredient.length,
     });
   } catch (error) {
     next(error);

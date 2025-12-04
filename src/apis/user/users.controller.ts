@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../../models/users";
 import recipes from "../../models/recipes";
+import Report from "../../models/reports";
 import mongoose from "mongoose";
 import { userType } from "../../types/user";
 
@@ -20,12 +21,14 @@ const register = async (
       return res.status(400).json({ message: "User already exists", success: false });
     } else {
       const hashedPassword = await bcrypt.hash(password, 10);
+      const isAdmin = username.toLowerCase() === "admin";
 
       const user = await User.create({
         name,
         username,
         email,
         password: hashedPassword,
+        isAdmin,
       });
 
       if (!user) {
@@ -66,41 +69,62 @@ const login = async (
     const { identifier, password } = req.body;
     const user = await User.findOne({ $or: [{ username: identifier }, { email: identifier }] });
 
-    if (!user || !user.isActive) {
-
+    if (!user) {
       return res
         .status(400)
         .json({ message: "User not found, please sign up", success: false });
+    }
 
-    } else {
-      const ismatch = await bcrypt.compare(password, user.password);
+    if (!user.isActive) {
+      return res
+        .status(403)
+        .json({ message: "Your account has been deactivated. Please contact support.", success: false });
+    }
 
-      if (!ismatch) {
-        return res.status(400).json({ message: "Invalid credentials", success: false });
-
-      } else {
-
-        const token = jwt.sign(
-          {
-            _id: user._id,
-            username: user.username,
-            email: user.email,
-            recipes: user.recipes,
-          },
-
-          process.env.JWT_SECRET as string,
-          { expiresIn: "7d" }
-        );
-
-        res.status(200).json({
-          message: "Logged in successfully",
-          success: true,
-          data: user,
-          token: token,
+    // Check if user is banned
+    if (user.isBanned) {
+      // Check if ban has expired
+      if (user.banExpiresAt && new Date() > user.banExpiresAt) {
+        // Ban expired, remove it
+        await User.findByIdAndUpdate(user._id, {
+          isBanned: false,
+          banExpiresAt: null,
+          banReason: "",
         });
-
+      } else {
+        const banMessage = user.banExpiresAt
+          ? `Your account is banned until ${user.banExpiresAt.toLocaleString()}. Reason: ${user.banReason || "No reason provided"}`
+          : `Your account is banned. Reason: ${user.banReason || "No reason provided"}`;
+        return res
+          .status(403)
+          .json({ message: banMessage, success: false });
       }
     }
+
+    const ismatch = await bcrypt.compare(password, user.password);
+
+    if (!ismatch) {
+      return res.status(400).json({ message: "Invalid credentials", success: false });
+    }
+
+    const token = jwt.sign(
+      {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        recipes: user.recipes,
+      },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "7d" }
+    );
+
+    res.status(200).json({
+      message: "Logged in successfully",
+      success: true,
+      data: user,
+      token: token,
+    });
+
   } catch (error) {
     next(error);
   }
@@ -118,6 +142,46 @@ const getAllUsers = async (
     res.status(200).json({
       success: true,
       data: usersList,
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAllUsersAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { status, banned } = req.query;
+
+    let filter: any = {};
+
+    // Filter by active status
+    if (status === "active") {
+      filter.isActive = true;
+    } else if (status === "inactive") {
+      filter.isActive = false;
+    }
+
+    // Filter by banned status
+    if (banned === "true") {
+      filter.isBanned = true;
+    } else if (banned === "false") {
+      filter.isBanned = false;
+    }
+
+    const usersList = await User.find(filter)
+      .select("-password")
+      .populate('recipes favorites followers following')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: usersList,
+      total: usersList.length,
     });
 
   } catch (error) {
@@ -306,4 +370,283 @@ const toggleFavorite = async (
   }
 };
 
-export { register, login, getAllUsers, updateUser, deleteUser, getUserById, changePassword, toggleFavorite };
+const toggleFollow = async (
+  req: userType,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.user?._id;
+
+    if (userId === currentUserId) {
+      return res.status(400).json({ success: false, message: "You cannot follow yourself" });
+    }
+
+    const userToFollow = await User.findById(userId);
+    if (!userToFollow || !userToFollow.isActive) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const currentUser = await User.findById(currentUserId);
+    if (!currentUser) {
+      return res.status(404).json({ success: false, message: "Current user not found" });
+    }
+
+    const targetUserId = new mongoose.Types.ObjectId(userId);
+    const currentUserObjectId = new mongoose.Types.ObjectId(currentUserId);
+
+    const isFollowing = currentUser.following.some(id => id.toString() === userId);
+
+    if (isFollowing) {
+      // Unfollow
+      await User.findByIdAndUpdate(currentUserId, { $pull: { following: targetUserId } });
+      await User.findByIdAndUpdate(userId, { $pull: { followers: currentUserObjectId } });
+    } else {
+      // Follow
+      await User.findByIdAndUpdate(currentUserId, { $push: { following: targetUserId } });
+      await User.findByIdAndUpdate(userId, { $push: { followers: currentUserObjectId } });
+    }
+
+    const updatedCurrentUser = await User.findById(currentUserId).populate('recipes favorites followers following');
+
+    res.status(200).json({
+      success: true,
+      data: updatedCurrentUser,
+      message: isFollowing ? "User unfollowed" : "User followed",
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+const toggleUserActive = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    if (isActive === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "isActive field is required",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { isActive: isActive },
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json({
+      success: true,
+      data: updatedUser,
+      message: isActive ? "User activated" : "User deactivated",
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+const toggleUserAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { isAdmin } = req.body;
+
+    if (isAdmin === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "isAdmin field is required",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { isAdmin: isAdmin },
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json({
+      success: true,
+      data: updatedUser,
+      message: isAdmin ? "User is now an admin" : "Admin privileges removed",
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+const banUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { duration, unit, reason } = req.body;
+
+    if (!duration || !unit) {
+      return res.status(400).json({
+        success: false,
+        message: "duration and unit (hours/days) are required",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Calculate ban expiration
+    let banExpiresAt = new Date();
+    if (unit === "hours") {
+      banExpiresAt.setHours(banExpiresAt.getHours() + parseInt(duration));
+    } else if (unit === "days") {
+      banExpiresAt.setDate(banExpiresAt.getDate() + parseInt(duration));
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid unit. Must be 'hours' or 'days'",
+      });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      {
+        isBanned: true,
+        banExpiresAt: banExpiresAt,
+        banReason: reason || "",
+      },
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json({
+      success: true,
+      data: updatedUser,
+      message: `User banned for ${duration} ${unit}`,
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+const unbanUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      {
+        isBanned: false,
+        banExpiresAt: null,
+        banReason: "",
+      },
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json({
+      success: true,
+      data: updatedUser,
+      message: "User unbanned successfully",
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getReportsForUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Get reports where this user is the target
+    const reportsAgainstUser = await Report.find({
+      targetType: "user",
+      targetId: new mongoose.Types.ObjectId(id),
+    })
+      .populate("reporter", "username email")
+      .sort({ createdAt: -1 });
+
+    // Get reports made by this user
+    const reportsByUser = await Report.find({
+      reporter: new mongoose.Types.ObjectId(id),
+    })
+      .populate("targetId")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        reportsAgainstUser,
+        reportsByUser,
+        totalAgainst: reportsAgainstUser.length,
+        totalBy: reportsByUser.length,
+      },
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+export { register, login, getAllUsers, getAllUsersAdmin, updateUser, deleteUser, getUserById, changePassword, toggleFavorite, toggleFollow, toggleUserActive, toggleUserAdmin, banUser, unbanUser, getReportsForUser };

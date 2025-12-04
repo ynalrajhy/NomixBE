@@ -1,17 +1,29 @@
 import mongoose, { Model, Schema, Document } from "mongoose";
 
+export interface IReply {
+  user: mongoose.Schema.Types.ObjectId;
+  text: string;
+  likes: mongoose.Schema.Types.ObjectId[];
+  createdAt: Date;
+}
+
+export interface IComment {
+  user: mongoose.Schema.Types.ObjectId;
+  text: string;
+  likes: mongoose.Schema.Types.ObjectId[];
+  replies: IReply[];
+  createdAt: Date;
+}
+
 export interface IRecipe extends Document {
   name: string;
+  description: string;
   category: mongoose.Schema.Types.ObjectId[];
   ingredients: mongoose.Schema.Types.ObjectId[];
   instructions: string[];
-  image: string;
+  images: string[];
   likes: mongoose.Schema.Types.ObjectId[];
-  comments: {
-    user: mongoose.Schema.Types.ObjectId;
-    text: string;
-    createdAt: Date;
-  }[];
+  comments: IComment[];
   views: number;
   shares: number;
   isPublic: boolean;
@@ -28,14 +40,22 @@ export interface IRecipe extends Document {
 
 const RecipeSchema = new Schema({
   name: String,
+  description: { type: String, default: "" },
   category: [{ type: mongoose.Schema.Types.ObjectId, ref: "categories" }],
   ingredients: [{ type: mongoose.Schema.Types.ObjectId, ref: "ingredients" }],
   instructions: [{ type: String, required: true }],
-  image: { type: String, required: true },
+  images: [{ type: String }],
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   comments: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     text: { type: String, required: true },
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    replies: [{
+      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      text: { type: String, required: true },
+      likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+      createdAt: { type: Date, default: Date.now }
+    }],
     createdAt: { type: Date, default: Date.now }
   }],
   views: { type: Number, default: 0 },
