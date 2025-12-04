@@ -32,4 +32,25 @@ const auth = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-export { auth };
+const admin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const mreq = req as userType;
+    const userId = mreq.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user || !user.isAdmin) {
+      return res.status(403).json({ message: "Access denied. Admin only." });
+    }
+
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: "Access denied. Admin only." });
+  }
+};
+
+export { auth, admin };

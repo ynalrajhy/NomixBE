@@ -1,8 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import categories from "../../models/categories";
 import recipes from "../../models/recipes";
+import Report from "../../models/reports";
+import mongoose from "mongoose";
 
-export const createCategory = async (
+const createCategory = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -34,7 +36,7 @@ export const createCategory = async (
   }
 };
 
-export const getAllCategories = async (
+const getAllCategories = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -51,7 +53,7 @@ export const getAllCategories = async (
   }
 };
 
-export const getOneCategory = async (
+const getOneCategory = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -75,7 +77,7 @@ export const getOneCategory = async (
   }
 };
 
-export const updateCategory = async (
+const updateCategory = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -105,7 +107,7 @@ export const updateCategory = async (
   }
 };
 
-export const deleteCategory = async (
+const deleteCategory = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -133,4 +135,145 @@ export const deleteCategory = async (
   } catch (error) {
     next(error);
   }
+};
+
+const getRandomCategoriesWithRecipes = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Get 10 random categories
+    const randomCategories = await categories.aggregate([
+      { $sample: { size: 10 } },
+    ]);
+
+    // For each category, get a random public recipe
+    const result = await Promise.all(
+      randomCategories.map(async (category) => {
+        const randomRecipe = await recipes.aggregate([
+          {
+            $match: {
+              category: category._id,
+              isPublic: true,
+            },
+          },
+          { $sample: { size: 1 } },
+        ]);
+
+        return {
+          category: {
+            _id: category._id,
+            name: category.name,
+          },
+          recipe: randomRecipe.length > 0 ? randomRecipe[0] : null,
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+// Admin functions
+const getAllCategoriesAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const categoriesList = await categories
+      .find()
+      .populate("recipes", "name")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: categoriesList,
+      total: categoriesList.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const adminDeleteCategory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const category = await categories.findByIdAndDelete(id);
+
+    if (!category) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Category not found" });
+    }
+
+    // Remove this category from all recipes that use it
+    await recipes.updateMany(
+      { category: id },
+      { $pull: { category: id } }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Category deleted successfully by admin",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getReportsForCategory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    const category = await categories.findById(id);
+
+    if (!category) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Category not found" });
+    }
+
+    const reportsForCategory = await Report.find({
+      targetType: "category",
+      targetId: new mongoose.Types.ObjectId(id),
+    })
+      .populate("reporter", "username email")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: reportsForCategory,
+      total: reportsForCategory.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export {
+  createCategory,
+  getAllCategories,
+  getOneCategory,
+  updateCategory,
+  deleteCategory,
+  getRandomCategoriesWithRecipes,
+  getAllCategoriesAdmin,
+  adminDeleteCategory,
+  getReportsForCategory,
 };

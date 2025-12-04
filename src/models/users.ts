@@ -13,6 +13,10 @@ export interface IUser {
   following: mongoose.Schema.Types.ObjectId[];
 
   isActive: boolean;
+  isAdmin: boolean;
+  isBanned: boolean;
+  banExpiresAt: Date | null;
+  banReason: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +35,10 @@ const UserSchema = new mongoose.Schema<IUser>({
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
   isActive: { type: Boolean, default: true },
+  isAdmin: { type: Boolean, default: false },
+  isBanned: { type: Boolean, default: false },
+  banExpiresAt: { type: Date, default: null },
+  banReason: { type: String, default: "" },
   createdAt: { type: Date, default: Date.now, required: true },
   updatedAt: { type: Date, default: Date.now, required: true },
 });

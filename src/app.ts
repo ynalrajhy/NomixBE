@@ -8,6 +8,7 @@ import recipesRoutes from "./apis/recipes/recipes.routes";
 import userRoutes from "./apis/user/user.routes";
 import ingredientsRoutes from "./apis/Ingredients/ingredients.routes";
 import categoriesRoutes from "./apis/categories/categories.routes";
+import reportsRoutes from "./apis/reports/reports.routes";
 import dotenv from "dotenv";
 import path from "path";
 
@@ -29,6 +30,7 @@ app.use("/api/recipes", recipesRoutes);
 app.use("/api/auth", userRoutes);
 app.use("/api/ingredients", ingredientsRoutes);
 app.use("/api/categories", categoriesRoutes);
+app.use("/api/reports", reportsRoutes);
 
 
 app.use(notFound);
